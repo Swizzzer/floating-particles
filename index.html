@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Floating Particles</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #f9f9f9;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+        }
+        
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <script type="module">
+        import init, { ParticleSystem } from './pkg/floating_particles.js';
+        
+        init().then(() => {
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            const particleCount = 80;  // 粒子数量
+            const connectionDistance = 150; // 粒子间连接距离
+            
+            let particleSystem = new ParticleSystem(
+                canvas.width, 
+                canvas.height, 
+                particleCount, 
+                connectionDistance
+            );
+            
+            // 鼠标交互
+            let mouseX = -1000;
+            let mouseY = -1000;
+            
+            canvas.addEventListener('mousemove', (e) => {
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+                particleSystem.update_mouse_position(mouseX, mouseY);
+            });
+            
+            canvas.addEventListener('mouseleave', () => {
+                mouseX = -1000;
+                mouseY = -1000;
+                particleSystem.update_mouse_position(mouseX, mouseY);
+            });
+            
+            window.addEventListener('resize', () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                particleSystem.resize(canvas.width, canvas.height);
+            });
+            
+            // 定义颜色
+            const particleColor = 'rgba(100, 110, 105, 0.7)';  // 深灰色粒子
+            const lineGradient = (opacity) => `rgba(60, 60, 60, ${opacity * 0.12})`; // 浅灰色连线
+            const mouseLineGradient = (opacity) => `rgba(0, 0, 0, ${opacity * 0.2})`; // 黑色鼠标连线
+            
+            function animate() {
+                requestAnimationFrame(animate);
+                
+                // 使用更淡的白色清屏，创造微妙的拖尾效果
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                particleSystem.update();
+                
+                // 绘制粒子间连接线
+                const connections = particleSystem.calculate_connections();
+                for (let i = 0; i < connections.length; i += 5) {
+                    const x1 = connections[i];
+                    const y1 = connections[i + 1];
+                    const x2 = connections[i + 2];
+                    const y2 = connections[i + 3];
+                    const opacity = connections[i + 4];
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.strokeStyle = lineGradient(opacity);
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+                
+                // 绘制鼠标连接线
+                if (mouseX >= 0 && mouseY >= 0) {
+                    const mouseConnections = particleSystem.get_mouse_connections();
+                    for (let i = 0; i < mouseConnections.length; i += 3) {
+                        const x = mouseConnections[i];
+                        const y = mouseConnections[i + 1];
+                        const strength = mouseConnections[i + 2];
+                        
+                        // 使用黑色渐变
+                        const gradient = ctx.createLinearGradient(mouseX, mouseY, x, y);
+                        gradient.addColorStop(0, `rgba(0, 0, 0, ${strength * 0.3})`);
+                        gradient.addColorStop(1, `rgba(0, 0, 0, ${strength * 0.1})`);
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(mouseX, mouseY);
+                        ctx.lineTo(x, y);
+                        ctx.strokeStyle = gradient;
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                    }
+                }
+                
+                // 绘制粒子
+                const particlesData = particleSystem.get_particles();
+                for (let i = 0; i < particlesData.length; i += 3) {
+                    const x = particlesData[i];
+                    const y = particlesData[i + 1];
+                    const size = particlesData[i + 2];
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, size, 0, Math.PI * 2);
+                    ctx.fillStyle = particleColor;
+                    ctx.fill();
+                }
+                
+                // 绘制鼠标指针（可选）
+                if (mouseX >= 0 && mouseY >= 0) {
+                    ctx.beginPath();
+                    ctx.arc(mouseX, mouseY, 2, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+                    ctx.fill();
+                }
+            }
+            
+            animate();
+        }).catch(e => console.error("WASM加载错误:", e));
+    </script>
+</body>
+</html>
