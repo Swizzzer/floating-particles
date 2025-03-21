@@ -1,5 +1,7 @@
 # Floating Particles
 
+https://github.com/user-attachments/assets/ed055690-290d-4409-b23d-60c8100f2b31
+
 ## Features
 
 - [x] **Particle Movement**: Random velocity and direction
@@ -12,4 +14,7 @@
 
 ## TODO
 - [ ] Add damping effect.
+
+
+
 
