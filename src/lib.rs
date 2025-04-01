@@ -14,7 +14,7 @@ pub struct ParticleSystem {
     mouse_force: f64,
     mouse_connections: Vec<(usize, f64)>,
     pub max_attraction_force: f64,
-    pub border_restitution: f64, 
+    pub border_restitution: f64,
 }
 
 #[wasm_bindgen]
@@ -31,7 +31,6 @@ pub struct Particle {
     pub orbit_speed: f64,
     pub orbit_radius: f64,
     pub is_orbiting: bool,
-    
 }
 
 #[wasm_bindgen]
@@ -80,7 +79,7 @@ impl ParticleSystem {
             mouse_force: 1.0,
             mouse_connections: Vec::new(),
             max_attraction_force: 0.4,
-            border_restitution: 0.6,
+            border_restitution: 1.0,
         }
     }
     pub fn update(&mut self) {
@@ -88,51 +87,50 @@ impl ParticleSystem {
             && self.mouse_y >= 0.0
             && self.mouse_x <= self.width
             && self.mouse_y <= self.height;
-    
+
         self.mouse_connections.clear();
-    
+
         for (idx, particle) in self.particles.iter_mut().enumerate() {
             let mut vx = particle.base_vx;
             let mut vy = particle.base_vy;
-    
+
             if mouse_active {
                 let dx = particle.x - self.mouse_x;
                 let dy = particle.y - self.mouse_y;
                 let distance_sq = dx * dx + dy * dy;
-                
+
                 if distance_sq < self.mouse_radius * self.mouse_radius {
                     let distance = distance_sq.sqrt();
                     let edge_factor = 1.0 - (distance / self.mouse_radius);
                     let attraction_strength = edge_factor * edge_factor * self.mouse_force;
-    
+
                     self.mouse_connections.push((idx, attraction_strength));
-    
+
                     let force = attraction_strength * self.max_attraction_force / distance;
                     vx -= dx * force;
                     vy -= dy * force;
                 }
             }
-    
+
             particle.x += vx;
             particle.y += vy;
-    
-            let border_restitution = 1.0;
+
             if particle.x < 0.0 {
                 particle.x = 0.0;
-                particle.base_vx = particle.base_vx.abs() * border_restitution;
+                particle.base_vx = particle.base_vx.abs() * self.border_restitution;
             } else if particle.x > self.width {
                 particle.x = self.width;
-                particle.base_vx = -particle.base_vx.abs() * border_restitution;
+                particle.base_vx = -particle.base_vx.abs() * self.border_restitution;
             }
-            
+
             if particle.y < 0.0 {
                 particle.y = 0.0;
-                particle.base_vy = particle.base_vy.abs() * border_restitution;
+                particle.base_vy = particle.base_vy.abs() * self.border_restitution;
             } else if particle.y > self.height {
                 particle.y = self.height;
-                particle.base_vy = -particle.base_vy.abs() * border_restitution;
+                particle.base_vy = -particle.base_vy.abs() * self.border_restitution;
             }
-    
+
             particle.vx = vx;
             particle.vy = vy;
         }
