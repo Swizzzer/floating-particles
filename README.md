@@ -1,6 +1,6 @@
 # Floating Particles
 
-https://github.com/user-attachments/assets/ed055690-290d-4409-b23d-60c8100f2b31
+https://github.com/user-attachments/assets/afbc074f-7b83-4f65-9624-55b832eeb7ff
 
 ## Features
 
