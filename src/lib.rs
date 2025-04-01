@@ -12,7 +12,9 @@ pub struct ParticleSystem {
     mouse_y: f64,
     mouse_radius: f64,
     mouse_force: f64,
-    mouse_connections: Vec<(usize, f64)>, // 存储与鼠标连接的粒子及其强度
+    mouse_connections: Vec<(usize, f64)>,
+    pub max_attraction_force: f64,
+    pub border_restitution: f64, 
 }
 
 #[wasm_bindgen]
@@ -23,12 +25,13 @@ pub struct Particle {
     pub vx: f64,
     pub vy: f64,
     pub size: f64,
-    pub base_vx: f64, // 基础速度，保持随机漂浮
+    pub base_vx: f64,
     pub base_vy: f64,
-    pub orbit_angle: f64,  // 轨道角度
-    pub orbit_speed: f64,  // 轨道速度
-    pub orbit_radius: f64, // 轨道半径
-    pub is_orbiting: bool, // 是否在轨道上
+    pub orbit_angle: f64,
+    pub orbit_speed: f64,
+    pub orbit_radius: f64,
+    pub is_orbiting: bool,
+    
 }
 
 #[wasm_bindgen]
@@ -76,6 +79,8 @@ impl ParticleSystem {
             mouse_radius: 150.0,
             mouse_force: 1.0,
             mouse_connections: Vec::new(),
+            max_attraction_force: 0.4,
+            border_restitution: 0.6,
         }
     }
     // TODO: 流体阻尼效果(现在的粒子会被鼠标推着走, 不太符合物理规律)
@@ -84,78 +89,55 @@ impl ParticleSystem {
             && self.mouse_y >= 0.0
             && self.mouse_x <= self.width
             && self.mouse_y <= self.height;
-
+    
         self.mouse_connections.clear();
-
+    
         for (idx, particle) in self.particles.iter_mut().enumerate() {
+            let mut vx = particle.base_vx;
+            let mut vy = particle.base_vy;
+    
             if mouse_active {
-                let mut rng = rand::thread_rng();
-
                 let dx = particle.x - self.mouse_x;
                 let dy = particle.y - self.mouse_y;
-                let direct_distance = (dx * dx + dy * dy).sqrt();
-
-                if direct_distance < self.mouse_radius {
-                    let attraction_strength = 1.0 - (direct_distance / self.mouse_radius);
-
+                let distance_sq = dx * dx + dy * dy;
+                
+                if distance_sq < self.mouse_radius * self.mouse_radius {
+                    let distance = distance_sq.sqrt();
+                    let edge_factor = 1.0 - (distance / self.mouse_radius);
+                    let attraction_strength = edge_factor * edge_factor * self.mouse_force;
+    
                     self.mouse_connections.push((idx, attraction_strength));
-
-                    if particle.is_orbiting {
-                        let target_distance = self.mouse_radius * rng.gen_range(0.6..1.5);
-                        let transition_speed = 0.05;
-
-                        particle.orbit_radius +=
-                            (target_distance - particle.orbit_radius) * transition_speed;
-                        particle.orbit_angle += particle.orbit_speed;
-                    } else {
-                        particle.orbit_angle = dy.atan2(dx);
-                        particle.orbit_radius = direct_distance;
-                        particle.is_orbiting = true;
-                    }
-
-                    let target_x =
-                        self.mouse_x + particle.orbit_radius * particle.orbit_angle.cos();
-                    let target_y =
-                        self.mouse_y + particle.orbit_radius * particle.orbit_angle.sin();
-
-                    particle.vx = (target_x - particle.x) * 0.1 * attraction_strength
-                        + particle.base_vx * (1.0 - attraction_strength);
-                    particle.vy = (target_y - particle.y) * 0.1 * attraction_strength
-                        + particle.base_vy * (1.0 - attraction_strength);
-                } else {
-                    particle.is_orbiting = false;
-                    particle.vx = particle.base_vx;
-                    particle.vy = particle.base_vy;
-                    particle.orbit_radius *= 0.95;
+    
+                    let force = attraction_strength * self.max_attraction_force / distance;
+                    vx -= dx * force;
+                    vy -= dy * force;
                 }
-            } else {
-                particle.is_orbiting = false;
-                particle.vx = particle.base_vx;
-                particle.vy = particle.base_vy;
             }
-
-            particle.x += particle.vx;
-            particle.y += particle.vy;
-
+    
+            particle.x += vx;
+            particle.y += vy;
+    
+            let border_restitution = 1.0;
             if particle.x < 0.0 {
-                particle.x = self.width;
-                // 穿越边界时重置轨道状态
-                particle.is_orbiting = false;
-            } else if particle.x > self.width {
                 particle.x = 0.0;
-                particle.is_orbiting = false;
+                particle.base_vx = particle.base_vx.abs() * border_restitution;
+            } else if particle.x > self.width {
+                particle.x = self.width;
+                particle.base_vx = -particle.base_vx.abs() * border_restitution;
             }
-
+            
             if particle.y < 0.0 {
-                particle.y = self.height;
-                particle.is_orbiting = false;
-            } else if particle.y > self.height {
                 particle.y = 0.0;
-                particle.is_orbiting = false;
+                particle.base_vy = particle.base_vy.abs() * border_restitution;
+            } else if particle.y > self.height {
+                particle.y = self.height;
+                particle.base_vy = -particle.base_vy.abs() * border_restitution;
             }
+    
+            particle.vx = vx;
+            particle.vy = vy;
         }
     }
-
     pub fn update_mouse_position(&mut self, x: f64, y: f64) {
         self.mouse_x = x;
         self.mouse_y = y;
