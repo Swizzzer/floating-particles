@@ -83,7 +83,6 @@ impl ParticleSystem {
             border_restitution: 0.6,
         }
     }
-    // TODO: 流体阻尼效果(现在的粒子会被鼠标推着走, 不太符合物理规律)
     pub fn update(&mut self) {
         let mouse_active = self.mouse_x >= 0.0
             && self.mouse_y >= 0.0
